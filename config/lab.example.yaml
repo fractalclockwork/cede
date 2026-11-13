@@ -30,6 +30,25 @@ serial:
       fallback_globs:
         - "/dev/ttyUSB*"
         - "/dev/ttyACM*"
+    # --- SDL / gateway instrument stubs (comment-only pattern; not wired into Hello Lab resolvers) ---
+    # Phase 7: cede-gateway as physical layer for external instrument repos (DEV_OP Part 2).
+    # Do not enable these under targets.* until resolvers are instrument-aware.
+    # Collision: uno by_id_glob usb-Arduino_* also matches Mega Marlin boards.
+    #
+    # ls55:  # PerkinElmer LS 55 via Prolific USB–RS232 — IOP: spectrometer-lab (9600 8N1, not defaults.baud)
+    #   by_id_glob: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller*"
+    #   fallback_globs:
+    #     - "/dev/ttyUSB*"
+    #
+    # marlin:  # 3D printer Marlin on Mega CDC — confirm M115 before locking; distinct from Hello Lab Uno
+    #   by_id_glob: "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_*"
+    #   fallback_globs:
+    #     - "/dev/ttyACM*"
+    #
+    # Camera (UVC): Logitech C310 often /dev/video0 on the gateway; prefer /dev/v4l/by-id/* when present.
+    #   groups: video — capture stays in instrument / SDL repos (not CEDE).
+    # crt-drive: same Pico USB by-id family as pico above; flash/monitor via pi-gateway-* helpers;
+    #   firmware and analog CRT drive live in the crt-drive repo (not Hello Lab).
 
 paths:
   pico_build: "lab/pico/hello_lab/build"

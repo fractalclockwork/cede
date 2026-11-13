@@ -1078,11 +1078,16 @@ through DS-15 is designed to accommodate them without structural changes.
 
 | Area | Description | How It Fits |
 |------|-------------|-------------|
+| **Gateway instrument host (SDL physical layer)** | Extensible discovery, attach, and access so a self-driving lab can manage physical experiment devices through cede-gateway while IOP/SOP/policy stay in separate repos. | Roadmap: [DEV_OP.md](DEV_OP.md) Part 2 Phase 7 (onboarding contract). Does not move IOP into CEDE; may later motivate a thin `instruments:` schema without changing the DS-1 firmware workflow. First cohort below. |
+| **LS 55 / spectrometer serial host** | Gateway USB–RS232 (Prolific PL2303 by-id); baud and protocol owned by spectrometer-lab. | `serial.devices` stub + dialout; IOP/Xe safety external. Phase 7 inventory. |
+| **Marlin / CNC serial host** | Gateway USB CDC (e.g. Mega by-id) for a 3D printer running Marlin; G-code IOP external. | Distinct from Hello Lab Uno resolvers; document Arduino by-id glob collisions. Phase 7. |
+| **UVC camera host** | Gateway V4L2 device class for lab / glass cameras. | `video` group + stable `/dev/video*` or by-id; capture apps external. Phase 7. |
+| **CRT drive (crt-drive)** | Pico on gateway USB synthesizes analog CRT sync/video; distinct from HDMI kiosk. | Reuse Pico flash/monitor helpers; firmware stays in crt-drive. Phase 7. |
 | **Multi-gateway** | Support N gateways, each with its own set of targets. | Extend `lab.yaml` with a `gateways` list; per-target `attach` references a named gateway. Transport layer (DS-8) is already parameterized. |
 | **OTA updates** | Wireless firmware update for WiFi-capable targets (e.g. Pico W). | New Flash Method in the Target Type manifest; `flash.tool: ota`, `flash.command: <ota-upload-script>`. |
 | **CI integration** | Run the full Staged Bootstrap in a CI pipeline with USB-attached hardware. | Direct-Attach mode (DS-12.1) already works on any machine with Docker and USB. CI-specific `lab.yaml` profiles can be added. |
 | **Sensor framework** | Structured sensor driver integration with catalog, wiring docs, and validation tests. | Post-bootstrap concern. Sensor drivers build on the serial and I2C contracts from DS-8 and DS-10. |
-| **Dashboard / telemetry** | Grafana, InfluxDB, or similar for real-time sensor visualization. | Optional gateway service. Does not affect the core workflow. |
+| **Dashboard / telemetry** | Grafana, InfluxDB, or similar for real-time sensor visualization. | Optional gateway service. Does not affect the core workflow. HDMI kiosk notes: `lab/pi/docs/dashboard-hdmi.md`. |
 | **MQTT** | Distributed messaging for multi-node sensor networks. | Optional gateway service. Does not affect the core workflow. |
 | **Resource locking** | Prevent concurrent access to a target from multiple Dev-Hosts. | Could be implemented as a simple lockfile on the gateway, checked via SSH before flash operations. |
 

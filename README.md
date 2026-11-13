@@ -228,6 +228,9 @@ Hello Lab is defined in [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION
 
 ## 9. Goals and Future Extensions
 
+CEDE’s gateway is the **physical device layer** for separate self-driving-lab instrument projects (spectrometer, Marlin printer, cameras, crt-drive, …): toolchains, stable USB/serial/V4L attach, and flash/sync stay here; IOP and experiment policy stay in those repos. Onboarding new instruments is tracked as **Phase 7** in [docs/DEV_OP.md](docs/DEV_OP.md) (see also DS-17).
+
+- Gateway instrument host pattern (SDL physical layer) — DEV_OP Phase 7  
 - OTA updates for Pico W  
 - Distributed sensor nodes via MQTT  
 - Unified dashboard (Grafana)  

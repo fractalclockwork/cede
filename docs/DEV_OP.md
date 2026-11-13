@@ -204,20 +204,105 @@ release":
 release gate; the roadmap, spec, and validation doc all point at each
 other consistently.
 
+### Phase 7 -- Gateway as SDL instrument host
+
+**DS:** DS-17 (gateway instrument host / SDL physical layer), DS-18
+(environment vs application separation).
+
+**North star:** CEDE (Dev-Host + cede-gateway) is the **physical control
+plane** for a self-driving lab. Experiment orchestration and policy stay
+in **self-driving-lab**; device protocol, safety, and acquisition stay in
+**instrument repos**. The gateway is the unified way those projects reach
+and manage physical devices. Phase 7 is a **repeatable onboarding
+pattern**, not a one-off gadget list — gateway services grow as new
+instruments are added.
+
+| Layer | Owns | Examples |
+|-------|------|----------|
+| self-driving-lab | Orchestration, policy, campaign state | SOPs, OperatorGate, adapters |
+| Instrument repos | IOP / protocol / abort / idle-safe | spectrometer-lab, crt-drive, Marlin IOP, camera projects |
+| CEDE Dev-Host + gateway | Toolchains, flash/sync, stable attach, discovery, access groups | by-id serial, UVC nodes, Pico flash, SSH sparse tree |
+
+**Boundary:** CEDE does **not** absorb spectrometer protocol, Marlin
+G-code, V4L capture apps, or campaign policy. It **does** document and
+grow gateway services: discover, name, permission, transport, and (where
+relevant) flash/monitor hooks that instrument repos consume. No new
+gateway daemons in this phase (DS-1.2); services mean config contracts
+and Make/SSH helpers first.
+
+#### Instrument onboarding contract
+
+Every new physical instrument should get the same CEDE-side checklist:
+
+1. **Identity** — USB vendor/product or by-id glob; class (serial / CDC /
+   UVC / other).
+2. **lab.yaml stub** — named entry under `serial.devices` or a future
+   `instruments:` section (comment-only until schema is extended).
+3. **Gateway OS needs** — groups (`dialout`, `video`), udev notes,
+   baud/defaults if serial.
+4. **CEDE surface** — discovery list target and/or health note;
+   flash/monitor only if MCU-like.
+5. **External owner** — link to the instrument repo (IOP owns protocol
+   and abort/idle-safe).
+6. **SDL hook** — note that SDL Stage 0 inventory / Stage 1 IOP talks
+   through this gateway path.
+7. **Non-interference** — Hello Lab Pico/Uno resolvers must not steal
+   instrument ports; document glob collisions (e.g. `usb-Arduino_*`
+   matches Mega as well as Uno).
+
+#### First-cohort inventory (cede-pi, battlestar bring-up)
+
+| Device | USB ID | Stable path | Instrument / owner |
+|--------|--------|-------------|--------------------|
+| Prolific PL2303 | `067b:2303` | `/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller-if00-port0` → `ttyUSB0` | **LS 55** spectrum analyzer — spectrometer-lab (9600 8N1) |
+| Arduino Mega 2560 | `2341:0042` | `/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_*` → `ttyACM1` | **Marlin** 3D printer — candidate; confirm with `M115` before locking local `lab.yaml` |
+| Raspberry Pi Pico | `2e8a:000a` | `/dev/serial/by-id/usb-Raspberry_Pi_Pico_*` → `ttyACM0` | **crt-drive** (RP2040 CRT ASIC replacement) |
+| Logitech C310 | `046d:081b` | UVC `/dev/video0` (+ `/dev/video1`) | Camera / glass HIL (crt-drive + SDL vision path) |
+| HDMI | — | `card0-HDMI-A-1` | Optional digital kiosk ([lab/pi/docs/dashboard-hdmi.md](../lab/pi/docs/dashboard-hdmi.md)); **not** the analog CRT |
+
+**Not attached yet:** Fujifilm FinePix A500 (separate camera-control
+project). **Collision note:** Hello Lab `uno` by-id glob `usb-Arduino_*`
+also matches Mega — instrument stubs must not be wired into Hello Lab
+resolvers until they are instrument-aware.
+
+#### Near-term work
+
+1. Keep this inventory and owners current in this section.
+2. Comment stubs in `config/lab.example.yaml` modeling the pattern
+   (`ls55`, `marlin`, camera / crt-drive notes).
+3. List-only discovery helpers later (`print-serial` / optional
+   `print-video`) — no IOP code in CEDE.
+4. crt-drive attach via gateway: reuse existing `pi-gateway-*` Pico flash
+   / monitor helpers; instrument firmware stays in crt-drive.
+5. Cross-link external bring-up: spectrometer-lab Quick Connect; SDL
+   instrument bring-up ladder; crt-drive toolchains (today Dev-Host USB;
+   migrate attach through cede-pi).
+
+**Definition of Done:** framing + onboarding contract + first-cohort
+inventory live in this phase; example lab stubs and DS-17 rows updated;
+`make hw-smoke` unchanged (Hello Lab Pico/Uno only); no instrument
+protocol code in CEDE.
+
 ### Non-goals (for now)
 
-These are listed in DS-17 and are deliberately out of scope for the
-phases above:
+These remain parked (see DS-17) except where Phase 7 explicitly tracks
+gateway **instrument hosting**:
 
 - Multi-gateway topologies.
 - OTA firmware updates.
-- Sensor framework / sensor catalog.
-- Dashboards, telemetry, MQTT.
+- Sensor framework / sensor catalog (as a CEDE-owned driver stack).
+- Dashboards, telemetry, MQTT as CEDE products.
 - Resource locking across multiple Dev-Hosts.
+- Full IOP / SOP / campaign policy inside CEDE (belongs in instrument
+  repos and self-driving-lab).
 
-They will be re-considered once Phases 1 - 5 are done and the
-extensibility claim from Phase 5 is demonstrated by at least one third
-target type.
+**Tracked in Phase 7 (not a non-goal):** repeatable gateway onboarding
+and physical attach for external instruments (LS 55, Marlin, UVC camera,
+crt-drive, and future devices).
+
+MCU Target Type extensibility (Phase 5) and release-grade validation
+(Phase 6) still gate how aggressively later gateway helpers land; Phase 7
+documents the SDL physical-layer direction in parallel.
 
 ---
 
