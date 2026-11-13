@@ -1,5 +1,7 @@
 # `ssd1306_dual` — dual SSD1306 on the Pi
 
+**Packaging:** this tree under `lab/pi/ssd1306_dual/` is what the gateway runs; the same sources live under **`demo-apps/ssd1306_dual/pi/`** for documentation and schema-checked `cede_app.yaml` — keep them in sync.
+
 Python application for the **Raspberry Pi gateway** that drives **two** SSD1306 I2C OLED modules on the same Linux I2C bus.
 
 ## Wiring

@@ -1,0 +1,7 @@
+application_id: gv2
+target: pico
+category: user
+entrypoint: build/*.uf2
+resources:
+  usb_serial:
+    banner_prefix: "CEDE gv2 rp2 ok"

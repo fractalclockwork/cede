@@ -1,0 +1,11 @@
+application_id: lab_stack
+target: pico
+category: user
+entrypoint: build/*.uf2
+resources:
+  usb_serial:
+    banner_prefix: "CEDE lab_stack rp2 ok"
+  i2c:
+    address: 0x42
+    register_map:
+      "0": 0xCE

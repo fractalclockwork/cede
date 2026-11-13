@@ -1,0 +1,188 @@
+# Golden commands documented in README, lab/docs/staged-bootstrap.md, and CI.
+# Used by tests/test_doc_command_manifest.py — keep in sync with .github/workflows/cede-smoke.yml
+# when that workflow's shell steps change.
+#
+# kind:
+#   env       — Dev-Host / Docker / pytest (safe to exercise lightly on PR CI)
+#   artifact  — build outputs / digests / paths (may assert paths only when artifacts exist)
+#   hw        — gateway / flash / I2C (make -n only on PR; never auto-flash)
+
+version: 1
+
+# Normalized lines from cede-smoke.yml "Build images and run smoke checks" (must match workflow).
+cede_smoke_make_lines:
+  - make -C lab/docker build-images
+  - make -C lab/docker smoke
+  - make -C lab/docker pico-build
+  - make -C lab/docker uno-build
+  - make pi-gateway-build-native-hello
+  - make -C lab/docker test-config
+
+# Inner command from orchestration-dev step (compose file path must match workflow).
+cede_smoke_compose_file: lab/docker/docker-compose.yml
+cede_smoke_compose_service: orchestration-dev
+cede_smoke_compose_inner: cd /workspace && pytest -q lab/tests/
+
+entries:
+  # --- README quick start (env) ---
+  - id: env-uv-sync-help
+    kind: env
+    doc_anchor: README.md#5-docker-toolchains-dev-host
+    check: shell
+    cmd: uv sync --help
+
+  - id: env-make-validate-dry
+    kind: env
+    doc_anchor: README.md#5-docker-toolchains-dev-host
+    check: make_n
+    cwd: .
+    cmd: make validate
+    note: 'Recipe runs: uv run pytest -q tests/ -m "not hardware" (Dev-Host / contracts only).'
+
+  - id: hw-make-validate-target-dry
+    kind: hw
+    doc_anchor: CONTRIBUTING.md#running-tests
+    check: make_n
+    cwd: .
+    cmd: make validate-target
+    note: 'Recipe runs: uv run pytest -q tests/ -m hardware (set CEDE_RUN_HARDWARE_* on a bench).'
+
+  - id: hw-make-validation-targets-dry
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md
+    check: make_n
+    cwd: .
+    cmd: make validation-targets
+    note: 'Bench only. Chains health, Docker pico/uno-build, pi-gateway-build-test-gateway-native, flash-test-pico/uno with aligned DIGEST.'
+
+  - id: env-make-test-config-local
+    kind: env
+    doc_anchor: lab/docs/staged-bootstrap.md#1-dev-host-workspace
+    check: make_n
+    cwd: .
+    cmd: make test-config-local
+
+  - id: env-pytest-config-collect
+    kind: env
+    doc_anchor: lab/docs/staged-bootstrap.md#1-dev-host-workspace
+    check: shell
+    cmd: uv run pytest --collect-only -q lab/tests/test_config_schema.py
+
+  - id: env-make-bootstrap-stage-dev-host
+    kind: env
+    doc_anchor: lab/docs/staged-bootstrap.md#1-dev-host-workspace
+    check: make_n
+    cwd: .
+    cmd: make bootstrap-stage-dev-host
+
+  - id: env-make-container-test-baseline
+    kind: env
+    doc_anchor: lab/docs/staged-bootstrap.md#1-dev-host-workspace
+    check: make_n
+    cwd: .
+    cmd: make container-test-baseline
+
+  - id: env-docker-lab-build-images
+    kind: env
+    doc_anchor: README.md#docker-images
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker build-images
+
+  - id: env-docker-lab-smoke
+    kind: env
+    doc_anchor: README.md#docker-images
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker smoke
+
+  - id: env-docker-lab-pico-build
+    kind: env
+    doc_anchor: README.md#docker-images
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker pico-build
+
+  - id: env-docker-lab-uno-build
+    kind: env
+    doc_anchor: README.md#docker-images
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker uno-build
+
+  - id: env-docker-lab-test-config
+    kind: env
+    doc_anchor: README.md#docker-images
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker test-config
+
+  - id: env-cede-help
+    kind: env
+    doc_anchor: README.md#5-docker-toolchains-dev-host
+    check: shell
+    cmd: uv run cede --help
+
+  # --- Artifact: digest-aligned docker build (staged-bootstrap copy-paste) ---
+  - id: art-docker-pico-uno-with-digest
+    kind: artifact
+    doc_anchor: lab/docs/staged-bootstrap.md#copy-paste-end-to-end-bench-validation
+    check: make_n
+    cwd: .
+    cmd: make -C lab/docker pico-build uno-build CEDE_IMAGE_ID=deadbeef1234
+
+  # --- Hardware (bench) — make targets must exist ---
+  - id: hw-pi-gateway-health
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#copy-paste-end-to-end-bench-validation
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-health GATEWAY=pi@cede-pi.local
+
+  - id: hw-pi-gateway-subtarget-check
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#copy-paste-end-to-end-bench-validation
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-subtarget-check GATEWAY=pi@cede-pi.local
+
+  - id: hw-pi-gateway-flash-test-pico
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#3-mcu-targets
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-flash-test-pico GATEWAY=pi@cede-pi.local
+
+  - id: hw-pi-gateway-flash-test-uno
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#3-mcu-targets
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-flash-test-uno GATEWAY=pi@cede-pi.local
+
+  - id: hw-pi-gateway-validate-i2c-from-lab
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#copy-paste-end-to-end-bench-validation
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-validate-i2c-from-lab GATEWAY=pi@cede-pi.local GATEWAY_REPO_ROOT='~/cede' CEDE_LAB_CONFIG=lab/config/lab.example.yaml
+
+  - id: hw-bootstrap-stage-gateway
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#2-cede-pi-gateway
+    check: make_n
+    cwd: .
+    cmd: make bootstrap-stage-gateway GATEWAY=pi@cede-pi.local GATEWAY_REPO_ROOT='~/cede'
+
+  - id: hw-pi-gateway-hello-lab-hardware-smoke
+    kind: hw
+    doc_anchor: lab/docs/staged-bootstrap.md#6-hardware-smoke
+    check: make_n
+    cwd: .
+    cmd: make pi-gateway-hello-lab-hardware-smoke GATEWAY=pi@cede-pi.local
+
+# Paths documented in staged-bootstrap §1 "Pass" — asserted when all exist (e.g. after bootstrap-stage-dev-host).
+artifact_expected_paths:
+  - lab/pico/hello_lab/build/hello_lab.uf2
+  - lab/uno/hello_lab/build/hello_lab.ino.hex
+  - lab/pi/native/hello_gateway/build/hello_gateway

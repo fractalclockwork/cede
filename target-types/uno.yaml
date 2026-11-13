@@ -1,0 +1,52 @@
+target_type: uno
+display_name: "Arduino Uno (ATmega328P)"
+
+toolchain:
+  image: cede/arduino-dev:local
+  # Arduino sketches require <dir>/<dir>.ino. If the sketch dir name does not
+  # match the .ino filename, stage the sources under a properly-named sketch
+  # dir in /tmp and copy the artifact back. Otherwise build in place.
+  build_command: >-
+    set -e;
+    inofile=$(ls *.ino 2>/dev/null | head -1);
+    if [ -z "$inofile" ]; then echo "no .ino found" >&2; exit 2; fi;
+    dname=$(basename "$PWD");
+    expected="$(basename "$inofile" .ino).ino";
+    mkdir -p build;
+    if [ -f tools/gen_cede_image_id.sh ]; then bash tools/gen_cede_image_id.sh; fi;
+    if [ "$inofile" = "$dname.ino" ]; then
+      arduino-cli compile --fqbn arduino:avr:uno --output-dir build .;
+    else
+      sketch_name="$(basename "$inofile" .ino)";
+      stage_root="/tmp/cede_uno_build_$$";
+      stage="$stage_root/$sketch_name";
+      rm -rf "$stage_root";
+      mkdir -p "$stage";
+      cp -r ./* "$stage"/;
+      rm -rf "$stage/build";
+      arduino-cli compile --fqbn arduino:avr:uno --output-dir "$stage/build" "$stage";
+      cp -r "$stage/build/." build/;
+      rm -rf "$stage_root";
+    fi
+  artifact_pattern: "build/*.hex"
+  build_context: "/workspace"
+
+flash:
+  tool: avrdude
+  command: >-
+    avrdude -p atmega328p -c arduino
+    -P {port} -b 115200
+    -D -U flash:w:{artifact}:i
+  post_flash_delay_s: 2
+
+serial:
+  speed: 115200
+  banner_pattern: "CEDE .+ ok digest={digest}"
+  device_match:
+    by_id_glob: "/dev/serial/by-id/usb-Arduino_*"
+    fallback_globs:
+      - "/dev/ttyUSB*"
+      - "/dev/ttyACM*"
+
+debug:
+  method: none

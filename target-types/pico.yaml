@@ -1,0 +1,28 @@
+target_type: pico
+display_name: "Raspberry Pi Pico / Pico W (RP2040)"
+
+toolchain:
+  image: cede/pico-dev:local
+  build_command: "cmake -B build -G Ninja && ninja -C build"
+  artifact_pattern: "build/*.uf2"
+  build_context: "/workspace"
+
+flash:
+  tool: picotool
+  command: "picotool load -f -v -x {artifact}"
+  pre_flash: "picotool reboot -uf"
+  post_flash_delay_s: 3
+
+serial:
+  speed: 115200
+  banner_pattern: "CEDE .+ ok digest={digest}"
+  device_match:
+    by_id_glob: "/dev/serial/by-id/usb-Raspberry_Pi_*"
+    fallback_globs:
+      - "/dev/ttyACM*"
+
+debug:
+  method: swd
+  tool: openocd
+  interface: "cmsis-dap"
+  gdb_port: 3333

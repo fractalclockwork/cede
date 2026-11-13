@@ -5,9 +5,10 @@ A **target** is physical (`pico`, `uno`, `pi`). An **application** is something 
 ## Layout
 
 - Reference firmware: **`hello_lab`** (default Docker/Make builds).
-- Second reference app: **`lab_stack`** — sibling folders [lab/pico/lab_stack](../pico/lab_stack/) and [lab/uno/lab_stack](../uno/lab_stack/), each with **`cede_app.yaml`** describing USB/I2C resources for tooling.
-- **Pi gateway application:** **`ssd1306_dual`** — Python on the Raspberry Pi driving two SSD1306 OLEDs over Linux I2C ([lab/pi/ssd1306_dual/README.md](../pi/ssd1306_dual/README.md)); registered under **`applications.ssd1306_dual.targets.pi`** with path keys in `lab.example.yaml`.
-- **`ssd1306_eyes`** — dual OLED **cartoon eyes** (blink + gaze) on the gateway ([lab/pi/ssd1306_eyes/README.md](../pi/ssd1306_eyes/README.md)); **`applications.ssd1306_eyes.targets.pi`**.
+- Second reference app: **`lab_stack`** — sibling folders [lab/pico/lab_stack](../pico/lab_stack/) and [lab/uno/lab_stack](../uno/lab_stack/), each with **`cede_app.yaml`** describing USB/I2C resources for tooling. Sources are mirrored under [demo-apps/lab_stack](../../demo-apps/lab_stack/README.md).
+- **Pico demo `gv2`:** minimal USB banner loop — sources in [demo-apps/gv2/pico](../../demo-apps/gv2/pico/README.md); **`lab/pico/gv2`** is a symlink to that tree so `make -C lab/docker pico-build PICO_APP=gv2` works.
+- **Pi gateway application:** **`ssd1306_dual`** — Python on the Raspberry Pi driving two SSD1306 OLEDs over Linux I2C ([lab/pi/ssd1306_dual/README.md](../pi/ssd1306_dual/README.md); canonical copy under [demo-apps/ssd1306_dual/pi](../../demo-apps/ssd1306_dual/pi/)); registered under **`applications.ssd1306_dual.targets.pi`** with path keys in `lab.example.yaml`.
+- **`ssd1306_eyes`** — dual OLED **cartoon eyes** (blink + gaze) on the gateway ([lab/pi/ssd1306_eyes/README.md](../pi/ssd1306_eyes/README.md); [demo-apps/ssd1306_eyes/pi](../../demo-apps/ssd1306_eyes/pi/)); **`applications.ssd1306_eyes.targets.pi`**.
 
 ## Configuration
 

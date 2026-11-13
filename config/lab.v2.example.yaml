@@ -1,0 +1,56 @@
+# CEDE lab.yaml v2 (DS-10.3)
+# Simplified topology: targets declare their type and where they're attached.
+# Copy to config/lab.yaml (gitignored) or set CEDE_LAB_CONFIG env var.
+
+schema_version: 2
+
+gateway:
+  ssh_host: cede-pi.local
+  ssh_user: pi
+  work_dir: "~/cede"
+
+targets:
+  pico:
+    type: pico
+    attach: gateway
+    serial:
+      by_id_glob: "/dev/serial/by-id/usb-Raspberry_Pi_*"
+      fallback_globs:
+        - "/dev/ttyACM*"
+
+  uno:
+    type: uno
+    attach: gateway
+    serial:
+      by_id_glob: "/dev/serial/by-id/usb-Arduino_*"
+      fallback_globs:
+        - "/dev/ttyUSB*"
+        - "/dev/ttyACM*"
+
+i2c_matrix:
+  bus_hz: 100000
+  probe_address: 0x42
+  pairs:
+    - initiator: rpi
+      target: pico
+      status: enabled
+      linux_bus: 1
+      probe_address: 0x42
+      notes: "cede-rp2 hello_lab @ 0x42 (GP0/1, LV)"
+      validation:
+        mode: rpi_master_i2cdev_read
+        controller: rpi
+        reg: 0
+        expect_byte: 0xCE
+
+    - initiator: rpi
+      target: uno
+      status: enabled
+      linux_bus: 1
+      probe_address: 0x43
+      notes: "cede-uno hello_lab @ 0x43 (A4/A5, HV)"
+      validation:
+        mode: rpi_master_i2cdev_read
+        controller: rpi
+        reg: 0
+        expect_byte: 0xCE

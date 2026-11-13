@@ -21,6 +21,8 @@
 *.ova
 
 # --- Local lab / secrets ---
+# Real path is config/lab.yaml. lab/config is a symlink to config/.
+config/lab.yaml
 lab/config/lab.yaml
 .env
 .env.*
@@ -42,6 +44,8 @@ htmlcov/
 coverage.xml
 
 # --- Test / runtime artefacts ---
+# Real path is tests/results/. lab/tests is a symlink to tests/.
+tests/results/
 lab/tests/results/
 lab/pi/logs/
 

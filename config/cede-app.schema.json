@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cede.local/schemas/cede-app.schema.json",
+  "title": "CEDE Application Manifest",
+  "description": "Declares a firmware or gateway application to CEDE (DS-11).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["application_id", "target", "category", "entrypoint"],
+  "properties": {
+    "application_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Unique string identifying the application. Used in serial banners and logs."
+    },
+    "target": {
+      "type": "string",
+      "description": "Target Type identifier (must match a target-types/*.yaml file) or 'pi' for gateway apps."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["validation", "user", "gateway"],
+      "description": "Application category: validation (lab self-test), user (developer firmware), gateway (runs on Pi)."
+    },
+    "entrypoint": {
+      "type": "string",
+      "description": "Glob pattern for the build artifact (MCU) or main script (gateway)."
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usb_serial": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "banner_prefix": {
+              "type": "string",
+              "description": "Expected prefix of the Serial Banner for validation."
+            }
+          }
+        },
+        "i2c": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "address": {
+              "type": "integer",
+              "minimum": 8,
+              "maximum": 119,
+              "description": "7-bit I2C responder address exposed by this firmware."
+            },
+            "register_map": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "description": "Expected register values (register number string to byte value)."
+            }
+          }
+        },
+        "i2c_oled": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "linux_bus": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Linux I2C bus number for OLED displays."
+            },
+            "displays": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["address_7bit"],
+                "properties": {
+                  "address_7bit": {
+                    "type": "integer",
+                    "minimum": 8,
+                    "maximum": 119
+                  },
+                  "note": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

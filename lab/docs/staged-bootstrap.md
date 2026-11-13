@@ -10,6 +10,8 @@ The gateway keeps **only** a **sparse** tree (**`sync_gateway_flash_deps.sh`** �
 
 ## Validation command checklist (environment + targets)
 
+**See also:** [User guide §2.1 — Validation by target and layer](../../docs/USER_GUIDE.md#21-validation-by-target-and-layer) for a scannable map of *which command validates which layer* (Dev-Host, Docker, Pi gateway vs Pi native target, Pico, Uno, **`make validation-targets`**, I2C). This page remains the **ordered** operator checklist.
+
 Use this section as the **operator index** after imaging **cede-pi** and wiring Pico/Uno. Order: **workspace → gateway → MCUs → I2C → (optional) gateway native**. **`GATEWAY`** defaults to **`pi@cede-pi.local`** in root **`Makefile`**; override when needed. **`unset DIGEST`** before smoke targets if your shell still exports an old **`DIGEST=`**.
 
 ### Copy-paste: end-to-end bench validation (`hello_lab`)
@@ -50,7 +52,7 @@ make pi-gateway-validate-i2c-from-lab \
 | Config schema | **`make test-config-local`** or **`uv run pytest -q lab/tests/test_config_schema.py`** |
 | Toolchain + **hello_lab** artifacts + **hello_gateway** cross-build | **`make bootstrap-stage-dev-host`** (for digest-aligned **`hello_lab`**, run Docker **`pico-build`** / **`uno-build`** with **`CEDE_IMAGE_ID=$(git rev-parse --short=12 HEAD)`** if **`bootstrap-stage-dev-host`** alone produced **`digest=unknown`**) |
 | CI-style container gate (Docker + builds + pytest in **orchestration-dev**) | **`make container-test-baseline`** |
-| Full lab pytest (no hardware) | **`make validate`** |
+| Full lab pytest (no hardware) | **`make validate`** (excludes `@pytest.mark.hardware`; hardware slice: **`make validate-target`** + `CEDE_RUN_HARDWARE_*`) |
 
 **Pass:** commands exit 0; UF2/HEX under **`lab/pico/hello_lab/build/`** and **`lab/uno/hello_lab/build/`**; **`lab/pi/native/hello_gateway/build/hello_gateway`** exists (aarch64 ELF from Docker).
 
@@ -99,6 +101,14 @@ Built on Dev-Host; Pi holds **no** full repo — **sync** + **`scp`** binary to 
 
 **Pass:** stdout line **`CEDE hello_gateway ok digest=<id>`** matches **`FIRMWARE_DIGEST`** / **`DIGEST`** (same rules as §3).
 
+### 5b. Tri-target validation (Pi + Pico + Uno, one digest)
+
+Confirms the Dev-Host environment can **build**, **deploy**, and **attest** validation firmware on **each** target type when hardware is present: native **`hello_gateway`** on the gateway (stdout), **`hello_lab`** on Pico (USB serial), **`hello_lab`** on Uno (USB serial). Uses the same **`FIRMWARE_DIGEST`** / **`DIGEST`** rules as §3 and §5.
+
+| Goal | Command |
+|------|---------|
+| Health + Docker **`pico-build`** / **`uno-build`** + **`pi-gateway-build-test-gateway-native`** + **`pi-gateway-flash-test-pico`** + **`pi-gateway-flash-test-uno`** | **`make validation-targets GATEWAY=pi@cede-pi.local`** optional **`DIGEST=…`**, **`UNO_PORT=…`** when **`PORT`** names the Pico tty |
+
 ### 6. Hardware smoke — unique **`CEDE_TEST_IMAGE_ID`** per run (both MCUs or one)
 
 | Scope | Command |
@@ -107,7 +117,7 @@ Built on Dev-Host; Pi holds **no** full repo — **sync** + **`scp`** binary to 
 | Uno only | **`make pi-gateway-hello-lab-hardware-smoke-uno GATEWAY=pi@cede-pi.local`** |
 | Pico only | **`make pi-gateway-hello-lab-hardware-smoke-pico GATEWAY=pi@cede-pi.local`** |
 
-Pytest (requires hardware env vars): **`CEDE_RUN_HARDWARE_FULL=1`**, **`CEDE_RUN_HARDWARE_UNO=1`**, **`CEDE_RUN_HARDWARE_PICO=1`** — see **`lab/tests/test_hello_lab_hardware_*.py`**.
+Pytest (requires hardware env vars): **`CEDE_RUN_HARDWARE_FULL=1`**, **`CEDE_RUN_HARDWARE_UNO=1`**, **`CEDE_RUN_HARDWARE_PICO=1`** — see **`tests/test_hello_lab_hardware_*.py`** (hardware-marked; run via **`make validate-target`** or direct `pytest -m hardware` with env set).
 
 ### 7. Full staged pipeline (workspace → gateway → Stage 0 → second MCU)
 
@@ -217,11 +227,11 @@ make bootstrap-stage-uno GATEWAY=pi@cede-pi.local
 
 **`make pi-gateway-hello-lab-hardware-smoke`** rebuilds **`hello_lab`** in containers with a **fresh `CEDE_TEST_IMAGE_ID`** each invocation (generator: **`lab/pi/scripts/cede_test_image_id.py`**), embeds it as **`digest=<id>`** in both UF2 and HEX, flashes Pico then Uno via the gateway, and runs serial validators with **`DIGEST=<id>`** so an old image on disk or on-chip fails. Pin the id for debugging: **`CEDE_TEST_IMAGE_ID=mytoken12 make pi-gateway-hello-lab-hardware-smoke`**.
 
-Pytest wrapper (same gate): **`CEDE_RUN_HARDWARE_FULL=1 GATEWAY=pi@cede-pi.local uv run pytest -q lab/tests/test_hello_lab_hardware_full.py`**.
+Pytest wrapper (same gate): **`CEDE_RUN_HARDWARE_FULL=1 GATEWAY=pi@cede-pi.local uv run pytest -q tests/test_hello_lab_hardware_full.py`**.
 
-**Uno only:** **`make pi-gateway-hello-lab-hardware-smoke-uno`** or **`CEDE_RUN_HARDWARE_UNO=1 uv run pytest -q lab/tests/test_hello_lab_hardware_uno_digest.py`**.
+**Uno only:** **`make pi-gateway-hello-lab-hardware-smoke-uno`** or **`CEDE_RUN_HARDWARE_UNO=1 uv run pytest -q tests/test_hello_lab_hardware_uno_digest.py`**.
 
-**Pico only:** **`make pi-gateway-hello-lab-hardware-smoke-pico`** or **`CEDE_RUN_HARDWARE_PICO=1 uv run pytest -q lab/tests/test_hello_lab_hardware_pico_digest.py`**.
+**Pico only:** **`make pi-gateway-hello-lab-hardware-smoke-pico`** or **`CEDE_RUN_HARDWARE_PICO=1 uv run pytest -q tests/test_hello_lab_hardware_pico_digest.py`**.
 
 If validation says **digest mismatch** but the timestamp prefix matches, check for a **stale `DIGEST` in the shell environment** (run **`unset DIGEST`** or use a clean shell). The smoke targets pin **`CEDE_TEST_IMAGE_ID`** once per **`make`** invocation so echo, Docker **`CEDE_IMAGE_ID`**, and **`DIGEST=`** all match.
 
@@ -249,4 +259,4 @@ Optional second-channel check on Pico Stage 0: **`BOOTSTRAP_ZERO_I2C=1`** (see S
 
 - [pico-uno-subtargets.md](../pi/docs/pico-uno-subtargets.md) — flash/resolve/validate details.
 - [bus-wiring.md](../pi/docs/bus-wiring.md) — I2C for second-channel attestation.
-- [CONTAINER_BOOTSTRAP.md](../../docs/CONTAINER_BOOTSTRAP.md) — container/image north star.
+- [Design specification — Appendix B (Container bootstrap)](../../docs/DESIGN_SPECIFICATION.md#appendix-b-container-bootstrap-stages-and-gates) — container/image north star.

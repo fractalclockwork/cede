@@ -5,9 +5,9 @@
 CEDE is a modular, reproducible, and containerized embedded systems development environment designed for multi‑MCU hardware experimentation.  
 It provides a **Dev-Host–centric toolchain** (workstation, NUC, VM, or CI), a **hardware gateway** (Raspberry Pi as the current reference), and **Pico W + Arduino Uno** microcontroller targets across 3.3 V and 5 V domains.
 
-> **Quick start:** `uv sync && make validate` runs the offline test suite. See [section 5](#5-docker-toolchains-dev-host) for Docker toolchain setup and [lab/docs/staged-bootstrap.md](lab/docs/staged-bootstrap.md) for the full bring-up checklist.
+> **Quick start:** `uv sync && make validate` runs the offline **environment** pytest suite (`tests/` with `-m "not hardware"`). For **which command validates which target or layer** (bench vs offline, Pi gateway vs Pi native, Pico, Uno), see [User guide §2.1](docs/USER_GUIDE.md#21-validation-by-target-and-layer). See [section 5](#5-docker-toolchains-dev-host) for Docker toolchain setup and [lab/docs/staged-bootstrap.md](lab/docs/staged-bootstrap.md) for the full bring-up checklist. The `cede` CLI (`cede build`, `cede deploy`, `cede validate`) provides a unified workflow -- see `cede --help`.
 
-**Deep dives:** [docs/CONTAINER_BOOTSTRAP.md](docs/CONTAINER_BOOTSTRAP.md) (pipeline stages and validation gates) · [docs/BOOT_IMAGES.md](docs/BOOT_IMAGES.md) (PC vs Pi boot artifacts) · [docs/BOOT_MEDIA_FLASH.md](docs/BOOT_MEDIA_FLASH.md) (raw image flashing) · [docs/TOOLCHAINS.md](docs/TOOLCHAINS.md) (Docker images and cross-compilers)
+**Documentation:** [Design specification](docs/DESIGN_SPECIFICATION.md) (architecture, contracts, appendices including glossary and bootstrap deep dives) · [User guide](docs/USER_GUIDE.md) (day-to-day usage) · [Developer / lab operations](docs/DEV_OP.md) (roadmap, release-grade hardware validation)
 
 CEDE emphasizes:
 - Reproducible builds via Docker
@@ -15,14 +15,14 @@ CEDE emphasizes:
 - Multi‑MCU orchestration
 - Clean separation of concerns
 - Scalable hardware integration
-- **Role‑based naming** (Dev-Host vs gateway vs targets)—see [DESIGN.md](DESIGN.md) §2
-- **Tests that validate the system and target availability** (Pi gateway, Pico, Uno)—see [DESIGN.md](DESIGN.md) §2
+- **Role‑based naming** (Dev-Host vs gateway vs targets)—see [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION.md) DS-3, DS-4
+- **Tests that validate the system and target availability** (Pi gateway, Pico, Uno)—see [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION.md) DS-14, DS-16.4
 
 ---
 
 ## 1. Design philosophy (summary)
 
-The full principles live in [DESIGN.md](DESIGN.md) §2. In short: the **Dev-Host** is any machine that runs editors and the same container images as CI; the **Raspberry Pi** is the stable USB/serial anchor for hardware; **contracts** (repo layout, serial formats, lab config, tests) are first‑class; **complexity is staged** (toolchains → gateway → MCUs → sensors). **Tests** are how we validate both behavior and **whether each target tier is available** (reachable Pi, enumerated Pico/Uno), using explicit skips when hardware is missing.
+The full principles live in [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION.md) DS-16, with the architecture in DS-3..DS-4 and the bootstrap/test gates in DS-14. Forward-looking direction lives in [docs/DEV_OP.md](docs/DEV_OP.md) (Part 2). In short: the **Dev-Host** is any machine that runs editors and the same container images as CI; the **Raspberry Pi** is the stable USB/serial anchor for hardware; **contracts** (repo layout, serial formats, lab config, tests) are first‑class; **complexity is staged** (toolchains → gateway → MCUs → sensors). **Tests** are how we validate both behavior and **whether each target tier is available** (reachable Pi, enumerated Pico/Uno), using explicit skips when hardware is missing.
 
 ---
 
@@ -81,36 +81,26 @@ flowchart LR
 ## 4. Repository Structure
 
 ```
-/docs
-  CONTAINER_BOOTSTRAP.md  # unified pipeline: containers → image deploy → hardware gates
-  BOOT_IMAGES.md           # PC Dev-Host vs Pi: no repo PC ISO; Pi OS .img + cloud-init vs Docker OCI
-  BOOT_MEDIA_FLASH.md      # dd raw/hybrid images to SD, USB, HDD/NVMe (export-raw-dd)
-  TOOLCHAINS.md            # Docker images, cross-compilers, version pins, validation gates
-/pyproject.toml          # Python deps for uv (lab validation, pi_bootstrap)
+/pyproject.toml          # Python package (cede CLI) + deps via uv
 /uv.lock
-/Makefile                # uv sync, test-config-local, pi-bootstrap-render
-/lab
-  /config
-    lab.example.yaml
-    lab.schema.json
-  /docker
-    /pico-dev
-    /arduino-dev
-    /orchestration-dev
-    docker-compose.yml
-    Makefile
-    TOOLCHAIN_VERSIONS
-  /pico/hello_lab          # minimal Pico W firmware (CMake)
-  /uno/hello_lab           # minimal Uno sketch (Arduino CLI)
-  /pi
-    bootstrap.sh
-    /bootstrap            # gateway installer + cloud-init helpers
-    /cloud-init           # templates + rendered files for SD card
-    /docs                 # SD card, CLI flash, HDMI dashboard notes
-    /scripts
-  /sensors
-    catalog.yaml           # post–Hello Lab
-  /tests
+/Makefile                # uv sync, validate, pi-gateway-*, cede-* targets
+/src/cede/               # Python CLI package (cede build/deploy/validate/debug)
+/target-types/           # Target Type manifests (pico.yaml, uno.yaml) + schema
+/config/                 # lab.yaml schema (v1 + v2), cede-app.schema.json
+/docker/                 # Docker toolchains (pico-dev, arduino-dev, orchestration-dev)
+/gateway/                # Gateway-side scripts (Pi)
+/templates/              # Scaffolding templates for cede new-app
+/validation-apps/        # Environment-validation firmware (hello_lab)
+  /hello_lab/pico/       #   Pico hello_lab (CMake + cede_app.yaml)
+  /hello_lab/uno/        #   Uno hello_lab (Arduino CLI + cede_app.yaml)
+/demo-apps/              # Example applications (not part of CEDE itself) — see demo-apps/README.md
+  /gv2/pico/             #   Minimal Pico USB banner demo (lab/pico/gv2 → symlink here)
+  /lab_stack/{pico,uno}/ #   Multi-target firmware demo
+  /ssd1306_dual/pi/      #   Dual OLED display demo (Python on Pi; mirrored under lab/pi/)
+  /ssd1306_eyes/pi/      #   Animated eyes demo (Python on Pi; mirrored under lab/pi/)
+/tests/                  # pytest suite (env-only: make validate uses -m "not hardware")
+/docs/                   # DESIGN_SPECIFICATION, USER_GUIDE, DEV_OP (+ smaller notes)
+/lab/                    # Legacy layout (symlinks to new locations during migration)
 ```
 
 ---
@@ -123,11 +113,11 @@ For **lab config validation**, **`pi_bootstrap.py`**, and **pytest** without pul
 
 ```bash
 uv sync                    # install locked deps (main + dev groups)
-make validate              # pytest all of lab/tests (schema + cloud-init + toolchain pins)
-make test-config-local     # pytest lab/config schema only
+make validate              # pytest tests/ excluding @pytest.mark.hardware (schema, cloud-init, CLI, …)
+make test-config-local     # pytest config schema only
 make pi-test-cloud-init    # pytest: rendered user-data contains hostname (offline)
-make pi-bootstrap-render   # uv-run pi_bootstrap.py render
-uv run python lab/pi/bootstrap/pi_bootstrap.py render   # equivalent
+cede --help                # CEDE CLI: build, deploy, validate, flash-test, run, debug, new-app
+cede build -t pico --app-dir validation-apps/hello_lab/pico   # example: build hello_lab
 ```
 
 **Pre-SD checks on the disk `.img`** (cloud-init on bootfs, optional QEMU): [lab/pi/emulate/README.md](lab/pi/emulate/README.md). Example: `make pi-verify-boot-img IMG=lab/pi/dist/your.img` (needs `sudo`).
@@ -146,7 +136,7 @@ make -C lab/docker uno-build      # HEX under lab/uno/hello_lab/build
 make -C lab/docker test-config    # validate lab.example.yaml against lab.schema.json
 ```
 
-Copy `lab/config/lab.example.yaml` to `lab/config/lab.yaml` for machine-specific SSH hosts and serial glob overrides (`lab.yaml` is gitignored). Pi **SSH key bootstrap** (optional but recommended for scripted E2E): [lab/pi/docs/ssh-keys-bootstrap.md](lab/pi/docs/ssh-keys-bootstrap.md).
+Copy `config/lab.example.yaml` to `config/lab.yaml` for machine-specific SSH hosts and serial glob overrides (`config/lab.yaml` is gitignored; `lab/config/` is a symlink to `config/`). Pi **SSH key bootstrap** (optional but recommended for scripted E2E): [lab/pi/docs/ssh-keys-bootstrap.md](lab/pi/docs/ssh-keys-bootstrap.md).
 
 Interactive shells: `make -C lab/docker shell-pico`, `shell-arduino`, `shell-orch`.
 
@@ -156,7 +146,7 @@ Interactive shells: `make -C lab/docker shell-pico`, `shell-arduino`, `shell-orc
 
 Full runbook: [lab/pi/docs/pico-uno-subtargets.md](lab/pi/docs/pico-uno-subtargets.md).
 
-**Bring-up validation (commands in order):** [lab/docs/staged-bootstrap.md](lab/docs/staged-bootstrap.md) § *Validation command checklist* — workspace (`make bootstrap-stage-dev-host`), gateway (`make bootstrap-stage-gateway`), MCU flash-test targets, I2C (`make pi-gateway-validate-i2c-from-lab`), gateway native (`make pi-gateway-validate-gateway-native`), and digest smoke targets.
+**Bring-up validation (commands in order):** [lab/docs/staged-bootstrap.md](lab/docs/staged-bootstrap.md) § *Validation command checklist* — workspace (`make bootstrap-stage-dev-host`), gateway (`make bootstrap-stage-gateway`), MCU flash-test targets, I2C (`make pi-gateway-validate-i2c-from-lab`), gateway native (`make pi-gateway-validate-gateway-native`), digest smoke targets, and **`make validation-targets`** for a single-command **Pi + Pico + Uno** deploy + banner check when the full bench is wired. **Conceptual map:** [User guide §2.1](docs/USER_GUIDE.md#21-validation-by-target-and-layer).
 
 **Gateway (Pi) native check:** `make pi-gateway-build-native-hello` cross-compiles **`lab/pi/native/hello_gateway`** (aarch64 in **`orchestration-dev`** on the Dev-Host). The Pi does not keep a CEDE **git** tree — `make pi-gateway-validate-gateway-native` **`rsync`s only `lab/pi` helpers** and **`scp`s the binary** to **`/tmp`**, then runs the validator (optional **`DIGEST=…`** / **`CEDE_IMAGE_ID`** for embed + compare).
 
@@ -222,7 +212,7 @@ RESP:{"imu":{"ax":0.12,"ay":0.03,"az":9.81}}
 
 ## 8. Bring‑Up Tests (“Hello Lab”)
 
-Hello Lab is defined in [DESIGN.md](DESIGN.md) §9. In order: **SSH** from Dev-Host to Pi, **Docker** firmware builds, **RPi flash** of Pico and Uno, **serial** data paths (Pi↔Pico, Pi↔Uno), then the **I2C matrix** across RPi, Pico, and Uno (all allowed source/endpoint pairs). **Sensors** are **after** bring-up—see [DESIGN.md](DESIGN.md) §9 scope.
+Hello Lab is defined in [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION.md) DS-14 (Staged Bootstrap) and DS-18.3 (Validation Applications). In order: **SSH** from Dev-Host to Pi, **Docker** firmware builds, **RPi flash** of Pico and Uno, **serial** data paths (Pi↔Pico, Pi↔Uno), then the **I2C matrix** across RPi, Pico, and Uno (all allowed source/endpoint pairs). **Sensors** are **after** bring-up—see DS-17 for that out-of-scope direction. For the inner-loop tripwire, run **`make hw-smoke`** (rebuilds **hello_lab** in Docker, then flash + validate; DS-14.2 and [docs/USER_GUIDE.md](docs/USER_GUIDE.md) §2.0).
 
 1. Dev-Host ↔ Pi SSH  
 2. Docker toolchain builds (Pico + Uno)  
@@ -257,7 +247,7 @@ Hello Lab is defined in [DESIGN.md](DESIGN.md) §9. In order: **SSH** from Dev-H
 **Active Development**  
 Core architecture and toolchain design complete.  
 Hardware integration and test suite in progress.  
-Design philosophy and Dev-Host terminology aligned with [DESIGN.md](DESIGN.md).
+Design philosophy and Dev-Host terminology aligned with [docs/DESIGN_SPECIFICATION.md](docs/DESIGN_SPECIFICATION.md) (authoritative; supersedes the v1 [DESIGN.md](DESIGN.md)).
 
 ---
 

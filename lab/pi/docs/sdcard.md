@@ -10,7 +10,7 @@ Declare Raspberry Pi imaging settings once in **`lab/config/lab.yaml`** (copy fr
 |------|---------------------|
 | **Download + expand** official OS to a **raw block `.img`** (whole-disk image for `dd`; e.g. Pi 3 Model B + **Lite 64-bit** from `os_image`) | `make pi-raw-sd-image` → `lab/pi/dist/*.img` per `cache_path` (large download) |
 | **Pi 3 gateway — DHCP + SSH baked into `.img`** (patch boot partition with rendered cloud-init) | `make pi-gateway-sd-ready` after **`lab.yaml`** + **`authorized_keys_file`** — see [rpi3-gateway-remote.md](rpi3-gateway-remote.md) |
-| **Write `.img` to SD with `dd`** (whole disk only; destructive) | `make export-raw-dd DEVICE=/dev/sdX IMG=lab/pi/dist/raspios_trixie_arm64_latest.img` or [`flash_raw_to_device.sh`](../scripts/flash_raw_to_device.sh) (also USB/HDD for hybrid ISOs — see [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.md)) |
+| **Write `.img` to SD with `dd`** (whole disk only; destructive) | `make export-raw-dd DEVICE=/dev/sdX IMG=lab/pi/dist/raspios_trixie_arm64_latest.img` or [`flash_raw_to_device.sh`](../scripts/flash_raw_to_device.sh) (also USB/HDD for hybrid ISOs — see [Design specification — Appendix E (Boot media)](../../../docs/DESIGN_SPECIFICATION.md#appendix-e-boot-media-and-raw-flashing)) |
 | Render `user-data` / `meta-data` only | `python3 lab/pi/bootstrap/pi_bootstrap.py render` |
 | Same without host PyYAML | `make -C lab/docker pi-bootstrap-render` |
 | Same with **uv** at repo root | `uv sync` then `make pi-bootstrap-render` (see [README](../../../README.md) §5) |

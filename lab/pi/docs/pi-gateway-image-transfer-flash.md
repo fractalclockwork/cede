@@ -127,7 +127,7 @@ sudo dd if=/var/tmp/raspios_trixie_arm64_latest.img of=/dev/sdX bs=4M status=pro
 sync
 ```
 
-Details and safety notes: [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.md).
+Details and safety notes: [Design specification — Appendix E (Boot media)](../../../docs/DESIGN_SPECIFICATION.md#appendix-e-boot-media-and-raw-flashing).
 
 ---
 
@@ -142,5 +142,5 @@ Details and safety notes: [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.m
 ## Related
 
 - [rpi3-gateway-remote.md](rpi3-gateway-remote.md) — Pi 3 Model B checklist  
-- [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.md) — `dd` safety, minimal host  
+- [Design specification — Appendix E (Boot media)](../../../docs/DESIGN_SPECIFICATION.md#appendix-e-boot-media-and-raw-flashing) — `dd` safety, minimal host  
 - [sdcard.md](sdcard.md) — YAML-driven bootstrap overview  

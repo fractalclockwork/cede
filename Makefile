@@ -7,12 +7,22 @@ DIGEST ?=
 CEDE_REPO_DIGEST := $(shell git -C $(REPO_ROOT) rev-parse --short=12 HEAD 2>/dev/null)
 FIRMWARE_DIGEST = $(if $(strip $(DIGEST)),$(DIGEST),$(CEDE_REPO_DIGEST))
 
-.PHONY: help sync sync-pi-gateway-flash-deps pi-gateway-sync pi-gateway-health pi-gateway-subtarget-check pi-gateway-print-serial pi-gateway-resolve-port-uno pi-gateway-resolve-port-pico pi-gateway-flash-uno pi-gateway-flash-pico pi-gateway-validate-uno pi-gateway-validate-pico pi-gateway-validate-pico-i2c pi-gateway-validate-uno-i2c pi-gateway-validate-i2c-pi-to-pico pi-gateway-validate-i2c-pi-to-uno pi-gateway-validate-i2c-from-lab pi-gateway-validate-i2c-both pi-gateway-diagnose-i2c pi-gateway-ssd1306-dual pi-gateway-ssd1306-dual-bus-speed pi-gateway-ssd1306-eyes pi-gateway-flash-test-uno pi-gateway-flash-test-pico pi-gateway-flash-test-pico-i2c pi-gateway-flash-test-uno-i2c pi-gateway-flash-test-pico-lab-stack pi-gateway-flash-test-uno-lab-stack pi-gateway-build-native-hello pi-gateway-validate-gateway-native pi-gateway-build-test-gateway-native bootstrap-stage-dev-host bootstrap-stage-gateway bootstrap-stage-zero bootstrap-stage-zero-pico bootstrap-stage-zero-uno bootstrap-stage-pico bootstrap-stage-uno bootstrap-pipeline cede-dev-preflight test-config-local validate docker-test-arch docker-workflow docker-workflow-print test-emulated-docker emulation-environments-test container-test-baseline pi-bootstrap-render pi-fetch-expand pi-raw-sd-image pi-raw-sd-image-force pi-gateway-img-patch pi-gateway-verify-boot pi-gateway-sd-ready pi-gateway-sd-ready-force export-raw-dd pi-dd-flash pi-test-cloud-init pi-verify-boot-img
+# Feature flag: set CEDE_USE_CLI=1 to delegate build/deploy/validate to the Python CLI.
+# When unset (default), the existing bash-script-based targets are used.
+CEDE_USE_CLI ?=
+CEDE_CMD := uv run cede
+# Explicit artifact for cede-deploy-*/cede-flash-test-* (omit to let CLI auto-detect from build output).
+CEDE_ARTIFACT ?=
+
+.PHONY: help sync hw-smoke validation-targets sync-pi-gateway-flash-deps pi-gateway-sync pi-gateway-health pi-gateway-subtarget-check pi-gateway-print-serial pi-gateway-resolve-port-uno pi-gateway-resolve-port-pico pi-gateway-flash-uno pi-gateway-flash-pico pi-gateway-validate-uno pi-gateway-validate-pico pi-gateway-validate-pico-i2c pi-gateway-validate-uno-i2c pi-gateway-validate-i2c-pi-to-pico pi-gateway-validate-i2c-pi-to-uno pi-gateway-validate-i2c-from-lab pi-gateway-validate-i2c-both pi-gateway-diagnose-i2c pi-gateway-ssd1306-dual pi-gateway-ssd1306-dual-bus-speed pi-gateway-ssd1306-eyes pi-gateway-flash-test-uno pi-gateway-flash-test-pico pi-gateway-flash-test-pico-i2c pi-gateway-flash-test-uno-i2c pi-gateway-flash-test-pico-lab-stack pi-gateway-flash-test-uno-lab-stack pi-gateway-build-native-hello pi-gateway-validate-gateway-native pi-gateway-build-test-gateway-native bootstrap-stage-dev-host bootstrap-stage-gateway bootstrap-stage-zero bootstrap-stage-zero-pico bootstrap-stage-zero-uno bootstrap-stage-pico bootstrap-stage-uno bootstrap-pipeline cede-dev-preflight test-config-local validate validate-target docker-test-arch docker-workflow docker-workflow-print test-emulated-docker emulation-environments-test container-test-baseline pi-bootstrap-render pi-fetch-expand pi-raw-sd-image pi-raw-sd-image-force pi-gateway-img-patch pi-gateway-verify-boot pi-gateway-sd-ready pi-gateway-sd-ready-force export-raw-dd pi-dd-flash pi-test-cloud-init pi-verify-boot-img
 
 help:
 	@echo "Python (uv):"
 	@echo "  make sync              — uv sync (creates .venv, installs deps from uv.lock)"
-	@echo "  make validate          — uv sync + full lab/tests pytest (config, cloud-init, toolchain pins)"
+	@echo "  make validate          — uv sync + tests/ pytest excluding @pytest.mark.hardware (Dev-Host / contracts)"
+	@echo "  make validate-target   — uv sync + tests/ pytest with -m hardware (bench; set CEDE_RUN_HARDWARE_*; see CONTRIBUTING)"
+	@echo "  make validation-targets — bench: build hello_lab (Pico/Uno) + hello_gateway (Pi); deploy each; assert attestation banners (DIGEST default: git short; needs Docker + GATEWAY + devices)"
+	@echo "  make hw-smoke          — live-hardware smoke: Docker rebuild hello_lab + gateway + I2C + flash/attest Pico & Uno (see tools/hw_smoke.sh; CEDE_HW_SMOKE_BUILD_TIMEOUT)"
 	@echo "  make docker-workflow-print — show Docker target order (host → emulated arm64/amd64)"
 	@echo "  make docker-workflow   — full Docker target workflow (host + emulated linux/arm64 + linux/amd64 + restore)"
 	@echo "  make docker-test-arch  — same as docker-workflow (alias)"
@@ -24,7 +34,7 @@ help:
 	@echo "  make pi-fetch-expand   — same as pi-raw-sd-image: download + expand official Pi OS to raw .img"
 	@echo "  make pi-raw-sd-image  — download + expand to raw block .img (ready for dd; see make pi-dd-flash)"
 	@echo "  make export-raw-dd DEVICE=/dev/sdX IMG=path.img — sudo dd raw image / hybrid ISO to disk (Pi SD, x86 USB/HDD; destructive)"
-	@echo "    If dd fsync fails: CEDE_DD_NO_FSYNC=1 make export-raw-dd DEVICE=… IMG=… (see BOOT_MEDIA_FLASH.md)"
+	@echo "    If dd fsync fails: CEDE_DD_NO_FSYNC=1 make export-raw-dd DEVICE=… IMG=… (see docs/DESIGN_SPECIFICATION.md Appendix E)"
 	@echo "  make pi-dd-flash … — alias of export-raw-dd"
 	@echo "  make pi-gateway-sd-ready — fetch/expand + patch boot + verify vs rendered cloud-init (use this for gateway SD; needs sudo)"
 	@echo "  make pi-gateway-sd-ready-force — same as pi-gateway-sd-ready with forced re-download/re-expand"
@@ -268,7 +278,7 @@ sync:
 	cd "$(REPO_ROOT)" && uv sync
 
 test-config-local:
-	cd "$(REPO_ROOT)" && uv run pytest -q lab/tests/test_config_schema.py
+	cd "$(REPO_ROOT)" && uv run pytest -q tests/test_config_schema.py
 
 # Introspection for tests (lab/tests/test_firmware_digest.py): DIGEST= overrides FIRMWARE_DIGEST.
 .PHONY: print-firmware-digest print-cede-repo-digest
@@ -280,7 +290,7 @@ print-cede-repo-digest:
 
 # Rebuild hello_lab with a unique digest, flash Pico + Uno on the gateway, validate USB banners (rejects stale images).
 # Requires: Docker (lab/docker), SSH to GATEWAY, Pico + Uno on the Pi. Optional UNO_PORT when PORT names the Pico.
-# Pytest: CEDE_RUN_HARDWARE_FULL=1 uv run pytest -q lab/tests/test_hello_lab_hardware_full.py
+# Pytest: CEDE_RUN_HARDWARE_FULL=1 uv run pytest -q tests/test_hello_lab_hardware_full.py
 # Must use := when generating: `?=` + `$(shell …)` is recursive, so every $(CEDE_TEST_IMAGE_ID) expansion
 # re-ran cede_test_image_id.py and produced a different suffix for echo vs docker vs DIGEST=.
 ifeq ($(origin CEDE_TEST_IMAGE_ID),undefined)
@@ -296,7 +306,7 @@ pi-gateway-hello-lab-hardware-smoke:
 	@$(MAKE) pi-gateway-flash-test-uno GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" HEX="$(HEX)" PORT="$(UNO_PORT)" SKIP_SYNC="$(SKIP_SYNC)" UNO_VALIDATE_WAIT="$(UNO_VALIDATE_WAIT)" DIGEST="$(CEDE_TEST_IMAGE_ID)"
 
 # Same unique digest idea as pi-gateway-hello-lab-hardware-smoke, but Uno only (Docker uno-build + flash + serial digest).
-# Pytest: CEDE_RUN_HARDWARE_UNO=1 uv run pytest -q lab/tests/test_hello_lab_hardware_uno_digest.py
+# Pytest: CEDE_RUN_HARDWARE_UNO=1 uv run pytest -q tests/test_hello_lab_hardware_uno_digest.py
 .PHONY: pi-gateway-hello-lab-hardware-smoke-uno
 pi-gateway-hello-lab-hardware-smoke-uno:
 	@echo ""
@@ -306,7 +316,7 @@ pi-gateway-hello-lab-hardware-smoke-uno:
 	@$(MAKE) pi-gateway-flash-test-uno GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" HEX="$(HEX)" PORT="$(PORT)" SKIP_SYNC="$(SKIP_SYNC)" UNO_VALIDATE_WAIT="$(UNO_VALIDATE_WAIT)" DIGEST="$(CEDE_TEST_IMAGE_ID)"
 
 # Same unique digest idea as pi-gateway-hello-lab-hardware-smoke, but Pico only (Docker pico-build + flash + serial digest).
-# Pytest: CEDE_RUN_HARDWARE_PICO=1 uv run pytest -q lab/tests/test_hello_lab_hardware_pico_digest.py
+# Pytest: CEDE_RUN_HARDWARE_PICO=1 uv run pytest -q tests/test_hello_lab_hardware_pico_digest.py
 .PHONY: pi-gateway-hello-lab-hardware-smoke-pico
 pi-gateway-hello-lab-hardware-smoke-pico:
 	@echo ""
@@ -316,7 +326,26 @@ pi-gateway-hello-lab-hardware-smoke-pico:
 	@$(MAKE) pi-gateway-flash-test-pico GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" UF2="$(UF2)" PICO_BOOTSEL_ONLY="$(PICO_BOOTSEL_ONLY)" PICO_WAIT_MOUNT="$(PICO_WAIT_MOUNT)" PORT="$(PORT)" SKIP_SYNC="$(SKIP_SYNC)" PICO_VALIDATE_WAIT="$(PICO_VALIDATE_WAIT)" DIGEST="$(CEDE_TEST_IMAGE_ID)"
 
 validate:
-	cd "$(REPO_ROOT)" && uv sync && uv run pytest -q lab/tests/
+	cd "$(REPO_ROOT)" && uv sync && uv run pytest -q tests/ -m "not hardware"
+
+validate-target:
+	cd "$(REPO_ROOT)" && uv sync && uv run pytest -q tests/ -m hardware
+
+# Tri-target proof: same build identity is embedded in hello_gateway (Pi aarch64) and hello_lab (Pico UF2 + Uno HEX),
+# then each image is deployed and attested (stdout or USB serial banner with digest=). Requires Docker, SSH to GATEWAY,
+# and Pico + Uno attached to the gateway. Optional UNO_PORT when PORT names the Pico tty.
+validation-targets:
+	@printf '%s\n' "=== validation-targets: Pi native + Pico + Uno (digest=$(FIRMWARE_DIGEST)) ==="
+	@$(MAKE) pi-gateway-health GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)"
+	@$(MAKE) -C "$(REPO_ROOT)/lab/docker" pico-build uno-build CEDE_IMAGE_ID="$(FIRMWARE_DIGEST)"
+	@$(MAKE) pi-gateway-build-test-gateway-native GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" SKIP_SYNC="$(SKIP_SYNC)" DIGEST="$(FIRMWARE_DIGEST)"
+	@$(MAKE) pi-gateway-flash-test-pico GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" UF2="$(UF2)" PICO_BOOTSEL_ONLY="$(PICO_BOOTSEL_ONLY)" PICO_WAIT_MOUNT="$(PICO_WAIT_MOUNT)" PORT="$(PORT)" SKIP_SYNC=1 PICO_VALIDATE_WAIT="$(PICO_VALIDATE_WAIT)" DIGEST="$(FIRMWARE_DIGEST)"
+	@$(MAKE) pi-gateway-flash-test-uno GATEWAY="$(GATEWAY)" GATEWAY_REPO_ROOT="$(GATEWAY_REPO_ROOT)" HEX="$(HEX)" PORT="$(UNO_PORT)" SKIP_SYNC=1 UNO_VALIDATE_WAIT="$(UNO_VALIDATE_WAIT)" DIGEST="$(FIRMWARE_DIGEST)"
+	@printf '%s\n' "=== validation-targets: ok (Pi stdout + Pico + Uno serial banners matched digest=$(FIRMWARE_DIGEST)) ==="
+
+# Companion to docs/DEV_OP.md Part 3 (the deep release-grade plan).
+hw-smoke:
+	@bash "$(REPO_ROOT)/tools/hw_smoke.sh"
 
 # Requires Docker. Host images first, then emulated targets (linux/arm64 then linux/amd64), then restore :local for host. On amd64 hosts: make -C lab/docker setup-binfmt once if arm64 fails.
 docker-workflow:
@@ -333,7 +362,7 @@ test-emulated-docker:
 emulation-environments-test:
 	$(MAKE) -C "$(REPO_ROOT)/lab/docker" emulation-envs-standup-test
 
-# Parity with .github/workflows/cede-smoke.yml — baseline Tier-0 container operation + full pytest inside orchestration-dev.
+# Parity with .github/workflows/cede-smoke.yml — baseline Tier-0 container operation + env-only pytest inside orchestration-dev.
 container-test-baseline:
 	$(MAKE) -C "$(REPO_ROOT)/lab/docker" build-images
 	$(MAKE) -C "$(REPO_ROOT)/lab/docker" smoke
@@ -341,7 +370,7 @@ container-test-baseline:
 	$(MAKE) -C "$(REPO_ROOT)/lab/docker" uno-build
 	$(MAKE) pi-gateway-build-native-hello
 	$(MAKE) -C "$(REPO_ROOT)/lab/docker" test-config
-	cd "$(REPO_ROOT)" && docker compose -f lab/docker/docker-compose.yml run --rm orchestration-dev bash -lc 'cd /workspace && pytest -q lab/tests/'
+	cd "$(REPO_ROOT)" && docker compose -f docker/docker-compose.yml run --rm -e PYTHONPATH=/workspace/src orchestration-dev bash -lc 'cd /workspace && pytest -q tests/ -m "not hardware" --ignore=tests/test_ssd1306_eyes_dirty_stats.py'
 
 pi-bootstrap-render:
 	cd "$(REPO_ROOT)" && uv run python lab/pi/bootstrap/pi_bootstrap.py render
@@ -391,9 +420,88 @@ export-raw-dd pi-dd-flash:
 	sudo "$(REPO_ROOT)/lab/pi/scripts/flash_raw_to_device.sh" --device "$(DEVICE)" --image "$$_img" --yes
 
 pi-test-cloud-init:
-	cd "$(REPO_ROOT)" && uv run pytest -q lab/tests/test_pi_cloud_init_render.py
+	cd "$(REPO_ROOT)" && uv run pytest -q tests/test_pi_cloud_init_render.py
 
 # Usage: make pi-verify-boot-img IMG=lab/pi/dist/foo.img
 pi-verify-boot-img:
 	@test -n "$(IMG)" || (echo "Set IMG=lab/pi/dist/your.img" >&2; exit 1)
 	sudo "$(REPO_ROOT)/lab/pi/scripts/verify_boot_image.sh" "$(IMG)"
+
+# ============================================================================
+# CLI-delegating targets (CEDE_USE_CLI=1)
+# These targets provide the same interface as the legacy targets but delegate
+# to the Python CLI when CEDE_USE_CLI=1. Otherwise they fall through to the
+# existing bash-based implementations above.
+# ============================================================================
+
+.PHONY: cede-build-pico cede-build-uno cede-deploy-pico cede-deploy-uno cede-validate-pico cede-validate-uno cede-flash-test-pico cede-flash-test-uno cede-run-pico cede-run-uno
+
+cede-build-pico:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) build --target pico --app-dir validation-apps/hello_lab/pico $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@echo "CEDE_USE_CLI not set; use 'make -C lab/docker pico-build' or set CEDE_USE_CLI=1" >&2; exit 1
+endif
+
+cede-build-uno:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) build --target uno --app-dir validation-apps/hello_lab/uno $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@echo "CEDE_USE_CLI not set; use 'make -C lab/docker uno-build' or set CEDE_USE_CLI=1" >&2; exit 1
+endif
+
+cede-deploy-pico:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) deploy --target pico $(if $(strip $(MODE)),--mode "$(MODE)",) --artifact "$(if $(CEDE_ARTIFACT),$(CEDE_ARTIFACT),$(REPO_ROOT)/validation-apps/hello_lab/pico/build/hello_lab.uf2)"
+else
+	@$(MAKE) pi-gateway-flash-pico
+endif
+
+cede-deploy-uno:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) deploy --target uno $(if $(strip $(MODE)),--mode "$(MODE)",) --artifact "$(if $(CEDE_ARTIFACT),$(CEDE_ARTIFACT),$(REPO_ROOT)/validation-apps/hello_lab/uno/build/hello_lab.ino.hex)"
+else
+	@$(MAKE) pi-gateway-flash-uno
+endif
+
+cede-validate-pico:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) validate --target pico $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@$(MAKE) pi-gateway-validate-pico
+endif
+
+cede-validate-uno:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) validate --target uno $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@$(MAKE) pi-gateway-validate-uno
+endif
+
+cede-flash-test-pico:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) flash-test --target pico $(if $(strip $(MODE)),--mode "$(MODE)",) $(if $(strip $(DIGEST)),--digest "$(DIGEST)",) --artifact "$(if $(CEDE_ARTIFACT),$(CEDE_ARTIFACT),$(REPO_ROOT)/validation-apps/hello_lab/pico/build/hello_lab.uf2)"
+else
+	@$(MAKE) pi-gateway-flash-test-pico
+endif
+
+cede-flash-test-uno:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) flash-test --target uno $(if $(strip $(MODE)),--mode "$(MODE)",) $(if $(strip $(DIGEST)),--digest "$(DIGEST)",) --artifact "$(if $(CEDE_ARTIFACT),$(CEDE_ARTIFACT),$(REPO_ROOT)/validation-apps/hello_lab/uno/build/hello_lab.ino.hex)"
+else
+	@$(MAKE) pi-gateway-flash-test-uno
+endif
+
+cede-run-pico:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) run --target pico --app-dir validation-apps/hello_lab/pico $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@echo "CEDE_USE_CLI not set; 'cede run' requires the CLI. Set CEDE_USE_CLI=1" >&2; exit 1
+endif
+
+cede-run-uno:
+ifeq ($(CEDE_USE_CLI),1)
+	cd "$(REPO_ROOT)" && $(CEDE_CMD) run --target uno --app-dir validation-apps/hello_lab/uno $(if $(strip $(DIGEST)),--digest "$(DIGEST)",)
+else
+	@echo "CEDE_USE_CLI not set; 'cede run' requires the CLI. Set CEDE_USE_CLI=1" >&2; exit 1
+endif

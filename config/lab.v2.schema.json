@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cede.local/schemas/lab.v2.schema.json",
+  "title": "CEDE lab configuration v2 (DS-10.3)",
+  "description": "Simplified lab topology with explicit gateway/target/attach model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "targets"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "gateway": { "$ref": "#/$defs/gateway" },
+    "targets": {
+      "type": "object",
+      "description": "Named targets with their type and attachment mode.",
+      "additionalProperties": { "$ref": "#/$defs/target" },
+      "minProperties": 1
+    },
+    "i2c_matrix": { "$ref": "#/$defs/i2cMatrix" },
+    "raspberry_pi_bootstrap": {
+      "type": "object",
+      "description": "Preserved from v1 for Pi imaging workflow.",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ssh_host"],
+      "properties": {
+        "ssh_host": {
+          "type": "string",
+          "description": "Hostname or IP for SSH to the gateway (e.g. cede-pi.local)."
+        },
+        "ssh_user": {
+          "type": "string",
+          "default": "pi",
+          "description": "SSH username on the gateway."
+        },
+        "work_dir": {
+          "type": "string",
+          "default": "~/cede",
+          "description": "Working directory on the gateway."
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "attach"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "References a target-types/*.yaml definition (e.g. pico, uno)."
+        },
+        "attach": {
+          "type": "string",
+          "enum": ["direct", "gateway"],
+          "description": "Where this target is physically connected."
+        },
+        "serial": { "$ref": "#/$defs/serialConfig" }
+      }
+    },
+    "serialConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "by_id_glob": {
+          "type": "string",
+          "description": "Stable /dev/serial/by-id/ glob pattern."
+        },
+        "fallback_globs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Less stable fallback patterns (e.g. /dev/ttyACM*)."
+        }
+      }
+    },
+    "i2cMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bus_hz", "pairs"],
+      "properties": {
+        "bus_hz": { "type": "integer", "minimum": 1000 },
+        "probe_address": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "pairs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/i2cPair" },
+          "minItems": 1
+        }
+      }
+    },
+    "i2cPair": {
+      "type": "object",
+      "required": ["initiator", "target", "status"],
+      "properties": {
+        "initiator": { "type": "string" },
+        "target": { "type": "string" },
+        "status": { "type": "string", "enum": ["enabled", "n/a"] },
+        "reason": { "type": "string" },
+        "linux_bus": { "type": "integer", "minimum": 0 },
+        "probe_address": { "type": "integer", "minimum": 8, "maximum": 119 },
+        "notes": { "type": "string" },
+        "validation": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}

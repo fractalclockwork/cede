@@ -41,4 +41,4 @@ To repeat **build → health → flash both MCUs → USB serial digest check →
 
 - [staged-bootstrap.md](staged-bootstrap.md) — operator checklist and full E2E script.
 - [lab/pi/docs/pico-uno-subtargets.md](../pi/docs/pico-uno-subtargets.md) — sparse sync, flash, validate, I2C matrix.
-- [DESIGN.md](../../DESIGN.md) — roles (dev-host, gateway, targets).
+- [docs/DESIGN_SPECIFICATION.md](../../docs/DESIGN_SPECIFICATION.md) DS-3, DS-4 — roles (Dev-Host, gateway, targets).

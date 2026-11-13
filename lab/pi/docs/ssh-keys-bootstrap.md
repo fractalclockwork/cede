@@ -23,12 +23,12 @@ The **public** file used by CEDE must end in **`.pub`** (e.g. `~/.ssh/id_ed25519
 
 ---
 
-## 2. Configure `lab/config/lab.yaml`
+## 2. Configure `config/lab.yaml`
 
-Copy from the example if needed:
+Copy from the example if needed (`lab/config/` is a symlink to `config/`):
 
 ```bash
-cp lab/config/lab.example.yaml lab/config/lab.yaml
+cp config/lab.example.yaml config/lab.yaml
 ```
 
 Edit **`lab.yaml`**:
@@ -174,9 +174,62 @@ ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 \
 
 ---
 
+## Adding another Dev-Host
+
+One gateway: **`pi@cede-pi.local`**. One Dev-Host drives it at a time (`make pi-gateway-*`, flash, sync). A second checkout can exist, but two hosts must not flash or sync together. The gateway has one USB bus and one sparse **`~/cede`** tree, and the last sync wins. This matches the single-developer, single-gateway scope in [DESIGN_SPECIFICATION.md](../../../docs/DESIGN_SPECIFICATION.md) DS-1.2.
+
+### On the new machine
+
+Install Docker, [uv](https://docs.astral.sh/uv/), GNU Make, and Git, then:
+
+```bash
+git clone <repo-url> && cd cede
+uv sync
+cp config/lab.example.yaml config/lab.yaml
+```
+
+In **`config/lab.yaml`** (gitignored):
+
+1. **`hosts.dev_host.repo_root`** — this checkout (for example **`~/src/cede`**).
+2. **`hosts.pi.ssh_host`** — **`cede-pi.local`**.
+3. **`hosts.pi.ssh_user`** — **`pi`**.
+4. **`hosts.pi.repo_root`** — **`~/cede`** (the sparse tree on the Pi, not a git clone).
+
+Create a key if this machine does not have one (§ 1). Reuse the **`~/.ssh/config`** stanza from [Host keys](#host-keys-avoid-editing-sshknown_hosts) (**`Host cede-pi.local`**, **`IdentityFile`**, **`IdentitiesOnly yes`**, and a separate **`UserKnownHostsFile`**).
+
+### Add a key on the running gateway
+
+Do this from the Dev-Host that already logs in. Do not re-flash. Append the new **`.pub`**; do not overwrite **`authorized_keys`**.
+
+Copy **`~/.ssh/id_ed25519.pub`** from the new machine to the current controller (for example **`/path/to/new-host.pub`**), then:
+
+```bash
+ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 pi@cede-pi.local \
+  'mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys' \
+  < /path/to/new-host.pub
+```
+
+From the new host:
+
+```bash
+ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 pi@cede-pi.local true
+```
+
+### Keep the key across a re-image
+
+A key added only on the live Pi is dropped the next time the SD card is imaged. **`authorized_keys_file`** is one file; every non-comment line in it is installed at first boot. Put the new **`.pub`** line in that file before **`pi_bootstrap.py render`** (§ 3–4) if the key should survive a re-image.
+
+To drop a host, delete its line in **`~/.ssh/authorized_keys`** on the Pi from a host that still has access, and remove the same line from **`authorized_keys_file`** so the next image does not restore it.
+
+### Hand-off
+
+Confirm the new key works, then stop gateway Make targets on the previous host. Only one Dev-Host should run **`make pi-gateway-*`** after that.
+
+---
+
 ## Security notes
 
-- **`lab/config/lab.yaml`** is **gitignored** — keep secrets and machine-specific paths there.
+- **`config/lab.yaml`** is **gitignored** — keep secrets and machine-specific paths there.
 - Only **public** keys belong in **`authorized_keys_file`**; never commit private keys.
 - Prefer **`authorized_keys_file`** over putting Wi‑Fi PSKs in YAML; use **`psk_file`** for Wi‑Fi when possible.
 

@@ -94,7 +94,7 @@ sudo xzcat ./2026-04-21-raspios-trixie-arm64-lite.img.xz | sudo dd of=/dev/mmcbl
 Or decompress first, then `sudo dd if=...img of=/dev/mmcblk0 bs=4M conv=fsync status=progress`.
 
 **CEDE helper** (same `dd`, with whole-disk checks and a short confirmation delay).  
-Works for **Pi `.img`** and other **raw / hybrid-dd** images (many Linux ISOs on **x86 USB** sticks — see [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.md)):
+Works for **Pi `.img`** and other **raw / hybrid-dd** images (many Linux ISOs on **x86 USB** sticks — see [Design specification — Appendix E (Boot media)](../../../docs/DESIGN_SPECIFICATION.md#appendix-e-boot-media-and-raw-flashing)):
 
 ```bash
 # After: make pi-raw-sd-image   → lab/pi/dist/*.img
@@ -323,4 +323,4 @@ Use this when you want **one downloaded artifact**, **CEDE cloud-init baked into
 
 - [ssh-keys-bootstrap.md](ssh-keys-bootstrap.md) — **`authorized_keys_file`**: create, test, deploy for passwordless SSH / E2E.
 - [sdcard.md](sdcard.md) — GUI Imager, first boot, gateway bootstrap.
-- [DESIGN.md](../../../DESIGN.md) §9 — Hello Lab ordering.
+- [docs/DESIGN_SPECIFICATION.md](../../../docs/DESIGN_SPECIFICATION.md) DS-14 (Staged Bootstrap) and DS-18.3 (Validation Applications) — Hello Lab ordering.

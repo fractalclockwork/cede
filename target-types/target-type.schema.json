@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cede.local/schemas/target-type.schema.json",
+  "title": "CEDE Target Type manifest",
+  "description": "Defines how CEDE builds, flashes, validates, and debugs a family of MCUs (DS-5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target_type", "toolchain", "flash", "serial"],
+  "properties": {
+    "target_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Unique identifier (lowercase, no spaces). Example: pico, uno, esp32."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for UI and logs."
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image", "build_command", "artifact_pattern"],
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image tag for the Toolchain Image."
+        },
+        "build_command": {
+          "type": "string",
+          "description": "Shell command to build firmware inside the container."
+        },
+        "artifact_pattern": {
+          "type": "string",
+          "description": "Glob matching the build output(s) (e.g. build/*.uf2)."
+        },
+        "build_context": {
+          "type": "string",
+          "description": "Working directory inside the container (default: /workspace)."
+        }
+      }
+    },
+    "flash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "command"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "description": "Name of the flash utility (e.g. picotool, avrdude, esptool.py)."
+        },
+        "command": {
+          "type": "string",
+          "description": "Parameterized flash command. Placeholders: {artifact}, {port}."
+        },
+        "pre_flash": {
+          "type": "string",
+          "description": "Optional command to run before flashing (e.g. reboot into bootloader)."
+        },
+        "post_flash_delay_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Seconds to wait after flashing before serial access."
+        }
+      }
+    },
+    "serial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["speed", "banner_pattern", "device_match"],
+      "properties": {
+        "speed": {
+          "type": "integer",
+          "minimum": 300,
+          "description": "Baud rate for USB CDC serial."
+        },
+        "banner_pattern": {
+          "type": "string",
+          "description": "Regex to match the Serial Banner. {digest} is replaced with the expected Build Identity."
+        },
+        "device_match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fallback_globs"],
+          "properties": {
+            "by_id_glob": {
+              "type": "string",
+              "description": "Stable device path glob (preferred). E.g. /dev/serial/by-id/usb-Raspberry_Pi_*"
+            },
+            "fallback_globs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "Fallback device globs when by-id is not available."
+            }
+          }
+        }
+      }
+    },
+    "debug": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["swd", "jtag", "none"],
+          "description": "Debug method. 'none' means no debug probe support."
+        },
+        "tool": {
+          "type": "string",
+          "description": "Debug tool (e.g. openocd, pyocd)."
+        },
+        "interface": {
+          "type": "string",
+          "description": "Debug interface (e.g. cmsis-dap, stlink)."
+        },
+        "gdb_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "GDB server port."
+        }
+      }
+    }
+  }
+}

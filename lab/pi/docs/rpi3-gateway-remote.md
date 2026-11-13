@@ -69,7 +69,7 @@ Close **gateway validation** before opening [pico-uno-subtargets.md](pico-uno-su
 
 | Step | Where | What |
 |------|--------|------|
-| 1 | Dev-Host | **`make validate`** — pytest for config schema, cloud-init render, and the offline SSH-key pipeline (no hardware). |
+| 1 | Dev-Host | **`make validate`** — pytest on `tests/` with **`-m "not hardware"`** (config schema, cloud-init render, offline SSH-key pipeline). Hardware-marked digest smokes use **`make validate-target`** + **`CEDE_RUN_HARDWARE_*`** on a bench — see [CONTRIBUTING.md](../../../CONTRIBUTING.md#running-tests). |
 | 2 | Dev-Host | **`make pi-gateway-sd-ready`** — patch the raw `.img` and run **`make pi-gateway-verify-boot`** so boot **`user-data`** matches **`lab/pi/cloud-init/rendered/`**. |
 | 3 | Bench | Flash the SD (below, § 3 *Flash*) or inject boot files on a mounted card (see **[cli-flash.md](cli-flash.md)**). |
 | 4 | LAN | **`ping`** + **`ssh`** (§ 4 *Boot*); optional **`bootstrap_pi.sh`** copied from Dev-Host (**`scp`** + **`sudo /tmp/bootstrap_pi.sh`**) for Docker/Arduino extras — never a full **`git clone`** on the gateway. |
@@ -142,4 +142,4 @@ Use **`hosts.pi.ssh_user`** if not `pi`.
 - [pico-uno-subtargets.md](pico-uno-subtargets.md) — Pico/Uno from the gateway; Uno path includes Dev-Host **`make pi-gateway-flash-test-uno`**, **`pi_resolve_gateway_uno.py`**, **`pytest …/test_uno_gateway_env.py`**  
 - [sdcard.md](sdcard.md) — YAML-driven imaging overview  
 - [ssh-keys-bootstrap.md](ssh-keys-bootstrap.md) — keys end-to-end  
-- [BOOT_MEDIA_FLASH.md](../../../docs/BOOT_MEDIA_FLASH.md) — `export-raw-dd` safety  
+- [Design specification — Appendix E (Boot media)](../../../docs/DESIGN_SPECIFICATION.md#appendix-e-boot-media-and-raw-flashing) — `export-raw-dd` safety  

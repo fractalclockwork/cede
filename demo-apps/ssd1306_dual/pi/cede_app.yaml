@@ -1,0 +1,12 @@
+application_id: ssd1306_dual
+target: pi
+category: gateway
+entrypoint: main.py
+resources:
+  i2c_oled:
+    linux_bus: 1
+    displays:
+      - address_7bit: 0x3C
+        note: "Left panel (physical placement)"
+      - address_7bit: 0x3D
+        note: "Right panel"

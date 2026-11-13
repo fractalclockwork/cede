@@ -1,0 +1,11 @@
+application_id: hello_lab
+target: uno
+category: validation
+entrypoint: build/*.hex
+resources:
+  usb_serial:
+    banner_prefix: "CEDE hello_lab ok"
+  i2c:
+    address: 0x43
+    register_map:
+      "0": 0xCE

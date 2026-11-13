@@ -1,0 +1,11 @@
+application_id: hello_lab
+target: pico
+category: validation
+entrypoint: build/*.uf2
+resources:
+  usb_serial:
+    banner_prefix: "CEDE hello_lab rp2 ok"
+  i2c:
+    address: 0x42
+    register_map:
+      "0": 0xCE

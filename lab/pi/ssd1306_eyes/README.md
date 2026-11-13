@@ -1,5 +1,7 @@
 # `ssd1306_eyes` — dual cartoon eyes on the Pi
 
+**Packaging:** gateway runtime tree here; canonical twin under **`demo-apps/ssd1306_eyes/pi/`** — keep in sync.
+
 Python app for the **Raspberry Pi gateway**: **cartoon cat** eyes—**sclera uses the full panel height** (e.g. 64px) and is centered, horizontal almond, heavy upper liner, **large dithered iris** (~**90%** of the smaller sclera semi-axis—wide-eyed cat; iris capped by correct inscribed-circle limits, not half-sized caps), **vertical slit pupils** when relaxed, snapping to **large round** pupils when something grabs attention, then **slowly** returning to slits. **Conjugate gaze** (both eyes together), optional **vergence** for near/cross-eyed poses. **Blinks**: normal, **slow**, **double** (pair with short gap), and **winks** (left or right only)—see `EyeAnimatorConfig` in `eyes_anim.py` for timings and mix weights. Uses **PIL** double-buffering per panel and optional **dirty-fraction** telemetry (`--stats-interval`). The right panel is **not** mirrored horizontally (mirroring looked boss-eyed); mount panels so both OLEDs share the same column direction.
 
 Same wiring as [`ssd1306_dual`](../ssd1306_dual/README.md): **bus 1**, addresses **0x3C** / **0x3D**, **3V3** logic.
